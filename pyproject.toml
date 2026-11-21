@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "reel4k"
+name = "insta-4k-reel-download-free"
 version = "0.1.0"
 description = "Download a public Instagram Reel from its URL and export it as a 4K MP4."
 readme = "README.md"

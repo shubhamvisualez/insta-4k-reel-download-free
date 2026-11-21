@@ -1,6 +1,10 @@
-# reel4k
+# Insta 4K Reel Download Free
 
-Paste the link to a public Instagram Reel and get a **4K MP4** (2160×3840 portrait / 3840×2160 landscape).
+Paste the link to a public Instagram Reel and get a **4K MP4** (2160×3840 portrait / 3840×2160 landscape). Free, no login.
+
+**🌐 Use it online:** WEB_APP_LINK
+
+You can also run it yourself as a web app or a command-line tool (`reel4k`).
 
 ```bash
 reel4k "https://www.instagram.com/reel/ABC123xyz/"
@@ -20,13 +24,22 @@ reel4k "https://www.instagram.com/reel/ABC123xyz/"
 Requires Python 3.10+. ffmpeg comes bundled through `imageio-ffmpeg`. If you have ffmpeg installed system-wide, reel4k uses that one.
 
 ```bash
-git clone https://github.com/shubhamvisualez/reel4k.git
-cd reel4k
+git clone https://github.com/shubhamvisualez/insta-4k-reel-download-free.git
+cd insta-4k-reel-download-free
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e .
 ```
 
-## Usage
+## Run the web app yourself
+
+```bash
+pip install -e . gradio
+python app.py   # opens on http://localhost:7860
+```
+
+Optional environment variables: `REEL4K_PRESET` (x264 speed, default `veryfast`) and `REEL4K_CRF` (quality, default `18`).
+
+## Command-line usage
 
 ```bash
 reel4k <url> [options]

@@ -113,6 +113,56 @@ def upscale(ffmpeg: str, src: Path, dst: Path, w: int, h: int, crf: int, preset:
     subprocess.run(cmd, check=True)
 
 
+class ReelError(Exception):
+    """Raised by fetch_reel with a message suitable for end users."""
+
+
+def fetch_reel(
+    url: str,
+    outdir: Path,
+    to_4k: bool = True,
+    crf: int = 16,
+    preset: str = "slow",
+    cookies_browser: str | None = None,
+    log=lambda msg: None,
+) -> dict:
+    """Download a Reel into outdir and return a summary dict. Used by the web app."""
+    m = URL_RE.match(url.strip())
+    if not m:
+        raise ReelError("That doesn't look like an Instagram Reel link, e.g. https://www.instagram.com/reel/ABC123xyz/")
+    shortcode = m.group(3)
+    ffmpeg = find_ffmpeg()
+    outdir.mkdir(parents=True, exist_ok=True)
+    final = outdir / f"{shortcode}{'_4k' if to_4k else ''}.mp4"
+
+    with tempfile.TemporaryDirectory(prefix="reel4k-") as tmp:
+        log("Fetching the best available video from Instagram…")
+        try:
+            src, info = download(url.strip(), Path(tmp), ffmpeg, cookies_browser)
+        except yt_dlp.utils.DownloadError as exc:
+            raise ReelError(
+                "Instagram didn't return this video. Make sure the account is public and the link is correct. "
+                f"({str(exc).replace('ERROR: ', '')[:200]})"
+            ) from exc
+        w, h = probe(ffmpeg, src)
+        log(f"Source resolution: {w}x{h}")
+        if not to_4k or max(w, h) >= TARGET_LONG_EDGE:
+            shutil.move(str(src), final)
+        else:
+            log("Exporting 4K…")
+            upscale(ffmpeg, src, final, w, h, crf, preset)
+
+    fw, fh = probe(ffmpeg, final)
+    return {
+        "id": shortcode,
+        "uploader": info.get("uploader") or info.get("channel"),
+        "source_resolution": f"{w}x{h}",
+        "output_resolution": f"{fw}x{fh}",
+        "file": str(final.resolve()),
+        "size_mb": round(final.stat().st_size / 1_048_576, 2),
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(
         prog="reel4k",
