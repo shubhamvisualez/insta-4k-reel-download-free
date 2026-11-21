@@ -1,0 +1,8 @@
+.venv/
+__pycache__/
+*.egg-info/
+build/
+dist/
+downloads/
+*.mp4
+.DS_Store

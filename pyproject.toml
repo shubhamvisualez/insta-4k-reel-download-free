@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "reel4k"
+version = "0.1.0"
+description = "Download a public Instagram Reel from its URL and export it as a 4K MP4."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+dependencies = [
+  "yt-dlp>=2025.1.1",
+  "imageio-ffmpeg>=0.5",
+]
+
+[project.scripts]
+reel4k = "reel4k.cli:main"
+
+[tool.setuptools]
+packages = ["reel4k"]
