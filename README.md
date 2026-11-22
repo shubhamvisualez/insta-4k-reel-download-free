@@ -37,7 +37,7 @@ pip install -e . gradio
 python app.py   # opens on http://localhost:7860
 ```
 
-Optional environment variables: `REEL4K_PRESET` (x264 speed, default `ultrafast`) and `REEL4K_CRF` (quality, default `23`).
+Optional environment variables: `REEL4K_PRESET` (x264 speed, default `ultrafast`), `REEL4K_CRF` (quality, default `23`) and `REEL4K_PROXY` (proxy for Instagram requests, see Troubleshooting).
 
 ## Command-line usage
 
@@ -51,6 +51,7 @@ reel4k <url> [options]
 | `--no-upscale` | Keep Instagram's original resolution |
 | `--crf N` | x264 quality for the 4K export. Lower is better quality and a larger file (default `16`) |
 | `--preset NAME` | x264 speed preset: `ultrafast` … `veryslow` (default `slow`) |
+| `--proxy URL` | Send Instagram requests through a proxy, e.g. `http://user:pass@host:port` |
 | `--cookies-from-browser B` | Use cookies from `chrome`, `safari`, `firefox`, … if Instagram rate-limits or asks for a login |
 | `--json` | Print a JSON summary when done |
 
@@ -73,6 +74,8 @@ You can also run it with `python -m reel4k <url>`.
 
 - **"login required" / rate-limit errors.** Instagram sometimes blocks anonymous requests. Add `--cookies-from-browser chrome` (or the browser where you're logged in to Instagram).
 - **Extraction broke suddenly.** Instagram changes often. Update yt-dlp with `pip install -U yt-dlp`.
+
+- **"Instagram is busy or limiting requests from this server".** Instagram blocks many cloud/data-center IPs. Use a residential proxy: set `REEL4K_PROXY=http://user:pass@host:port` (on Hugging Face: Space → Settings → Variables and secrets → New secret named `REEL4K_PROXY`), or pass `--proxy` on the command line.
 
 ## Legal
 

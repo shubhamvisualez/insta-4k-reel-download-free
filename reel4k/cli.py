@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -95,6 +96,11 @@ def download(
     }
     if cookies_browser:
         opts["cookiesfrombrowser"] = (cookies_browser,)
+    # Instagram often blocks cloud-server IPs; route requests through a proxy if one is set,
+    # e.g. REEL4K_PROXY=http://user:pass@proxy.example.com:8000
+    proxy = os.environ.get("REEL4K_PROXY", "").strip()
+    if proxy:
+        opts["proxy"] = proxy
     if on_progress:
         def hook(d):
             total = d.get("total_bytes") or d.get("total_bytes_estimate")
@@ -244,11 +250,16 @@ def main(argv: list[str] | None = None) -> int:
                    help="x264 speed preset for the 4K export (default: slow)")
     p.add_argument("--cookies-from-browser", metavar="BROWSER",
                    help="use cookies from a browser (chrome, safari, firefox...) if Instagram rate-limits you")
+    p.add_argument("--proxy", metavar="URL",
+                   help="send Instagram requests through this proxy, e.g. http://user:pass@host:port "
+                        "(same as the REEL4K_PROXY environment variable)")
     p.add_argument("--json", action="store_true", help="print a JSON summary when done")
     args = p.parse_args(argv)
 
     shortcode = parse_url(args.url)
     ffmpeg = find_ffmpeg()
+    if args.proxy:
+        os.environ["REEL4K_PROXY"] = args.proxy
 
     out = args.output
     if out.suffix.lower() == ".mp4":
