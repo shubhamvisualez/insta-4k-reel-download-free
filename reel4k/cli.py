@@ -86,6 +86,12 @@ def download(
         "quiet": True,
         "no_warnings": True,
         "noprogress": False,
+        # Instagram sometimes stalls requests from cloud servers: wait longer and retry
+        "socket_timeout": 45,
+        "retries": 5,
+        "extractor_retries": 4,
+        "fragment_retries": 5,
+        "retry_sleep_functions": {"http": lambda n: 2 * (n + 1), "extractor": lambda n: 3 * (n + 1)},
     }
     if cookies_browser:
         opts["cookiesfrombrowser"] = (cookies_browser,)
@@ -189,6 +195,12 @@ def fetch_reel(
                 on_progress=lambda f: report(0.02 + 0.18 * f, f"Downloading from Instagram… {f:.0%}"),
             )
         except yt_dlp.utils.DownloadError as exc:
+            text = str(exc).lower()
+            if "timed out" in text or "timeout" in text or "429" in text or "rate" in text:
+                raise ReelError(
+                    "Instagram is busy or limiting requests from this server right now. "
+                    "Please wait a minute and try again."
+                ) from exc
             raise ReelError(
                 "Instagram didn't return this video. Make sure the account is public and the link is correct. "
                 f"({str(exc).replace('ERROR: ', '')[:200]})"
