@@ -89,7 +89,7 @@ with gr.Blocks(title=TITLE) as demo:
     url.submit(run, [url, quality], [out, status])
 
     gr.Markdown(
-        "<small>4K export takes about 1–3 minutes, depending on the Reel's length. "
+        "<small>4K export on this free server takes about twice the Reel's length (a 1-minute Reel takes about 2 minutes). Choose Original quality for an instant download. "
         "Instagram stores most Reels at up to 1080×1920, so the 4K file is upscaled from the best available source. "
         "Only download content you own or have permission to use. Not affiliated with Instagram or Meta. "
         "[Source code](https://github.com/shubhamvisualez/insta-4k-reel-download-free)</small>"
