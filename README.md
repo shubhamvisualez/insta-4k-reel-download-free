@@ -37,7 +37,7 @@ pip install -e . gradio
 python app.py   # opens on http://localhost:7860
 ```
 
-Optional environment variables: `REEL4K_PRESET` (x264 speed, default `veryfast`) and `REEL4K_CRF` (quality, default `18`).
+Optional environment variables: `REEL4K_PRESET` (x264 speed, default `ultrafast`) and `REEL4K_CRF` (quality, default `23`).
 
 ## Command-line usage
 

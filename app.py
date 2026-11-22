@@ -20,8 +20,9 @@ from reel4k.cli import ReelError, fetch_reel
 TITLE = "Insta 4K Reel Download Free"
 OUT_ROOT = Path(os.environ.get("REEL4K_OUT", Path(tempfile.gettempdir()) / "reel4k-web"))
 MAX_AGE_S = 60 * 60  # delete generated files after an hour
-PRESET = os.environ.get("REEL4K_PRESET", "veryfast")
-CRF = int(os.environ.get("REEL4K_CRF", "18"))
+# ultrafast is ~2.5x faster than veryfast on the free 2-CPU server; crf 23 keeps files reasonable
+PRESET = os.environ.get("REEL4K_PRESET", "ultrafast")
+CRF = int(os.environ.get("REEL4K_CRF", "23"))
 
 
 def cleanup() -> None:
@@ -39,11 +40,10 @@ def run(url: str, quality: str, progress=gr.Progress()):
         raise gr.Error("Paste an Instagram Reel link first.")
     job = OUT_ROOT / uuid.uuid4().hex[:12]
     to_4k = quality.startswith("4K")
-    steps = iter([0.1, 0.5, 0.6, 0.9])
     try:
         info = fetch_reel(
             url, job, to_4k=to_4k, crf=CRF, preset=PRESET,
-            log=lambda msg: progress(next(steps, 0.95), desc=msg),
+            progress=lambda frac, msg: progress(frac, desc=msg),
         )
     except ReelError as exc:
         shutil.rmtree(job, ignore_errors=True)
@@ -89,7 +89,7 @@ with gr.Blocks(title=TITLE) as demo:
     url.submit(run, [url, quality], [out, status])
 
     gr.Markdown(
-        "<small>4K export on this free server takes about twice the Reel's length (a 1-minute Reel takes about 2 minutes). Choose Original quality for an instant download. "
+        "<small>4K export on this free server takes roughly as long as the Reel itself (a 1-minute Reel takes about 1 minute), and the progress bar shows how far along it is. Choose Original quality for an instant download. "
         "Instagram stores most Reels at up to 1080×1920, so the 4K file is upscaled from the best available source. "
         "Only download content you own or have permission to use. Not affiliated with Instagram or Meta. "
         "[Source code](https://github.com/shubhamvisualez/insta-4k-reel-download-free)</small>"

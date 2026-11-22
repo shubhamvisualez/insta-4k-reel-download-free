@@ -64,7 +64,18 @@ def probe(ffmpeg: str, path: Path) -> tuple[int, int]:
     return int(m.group(1)), int(m.group(2))
 
 
-def download(url: str, workdir: Path, ffmpeg: str, cookies_browser: str | None) -> tuple[Path, dict]:
+def probe_duration(ffmpeg: str, path: Path) -> float:
+    """Return the media duration in seconds (0 if unknown)."""
+    out = subprocess.run([ffmpeg, "-hide_banner", "-i", str(path)], capture_output=True, text=True).stderr
+    m = re.search(r"Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)", out)
+    if not m:
+        return 0.0
+    return int(m.group(1)) * 3600 + int(m.group(2)) * 60 + float(m.group(3))
+
+
+def download(
+    url: str, workdir: Path, ffmpeg: str, cookies_browser: str | None, on_progress=None
+) -> tuple[Path, dict]:
     opts = {
         "outtmpl": str(workdir / "%(id)s.%(ext)s"),
         # best video + best audio, prefer highest resolution, then bitrate
@@ -78,6 +89,13 @@ def download(url: str, workdir: Path, ffmpeg: str, cookies_browser: str | None) 
     }
     if cookies_browser:
         opts["cookiesfrombrowser"] = (cookies_browser,)
+    if on_progress:
+        def hook(d):
+            total = d.get("total_bytes") or d.get("total_bytes_estimate")
+            if d.get("status") == "downloading" and total:
+                on_progress(min(d.get("downloaded_bytes", 0) / total, 1.0))
+        opts["progress_hooks"] = [hook]
+        opts["noprogress"] = True
 
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=True)
@@ -93,7 +111,10 @@ def download(url: str, workdir: Path, ffmpeg: str, cookies_browser: str | None) 
     return files[0], info
 
 
-def upscale(ffmpeg: str, src: Path, dst: Path, w: int, h: int, crf: int, preset: str) -> None:
+def upscale(
+    ffmpeg: str, src: Path, dst: Path, w: int, h: int, crf: int, preset: str, on_progress=None
+) -> None:
+    """Scale src to 4K. on_progress(fraction) is called as encoding advances, if given."""
     if h >= w:  # portrait (typical Reel) -> 2160x3840
         scale = f"scale={TARGET_SHORT_EDGE}:{TARGET_LONG_EDGE}:force_original_aspect_ratio=decrease:flags=lanczos"
         pad = f"pad={TARGET_SHORT_EDGE}:{TARGET_LONG_EDGE}:(ow-iw)/2:(oh-ih)/2"
@@ -101,7 +122,8 @@ def upscale(ffmpeg: str, src: Path, dst: Path, w: int, h: int, crf: int, preset:
         scale = f"scale={TARGET_LONG_EDGE}:{TARGET_SHORT_EDGE}:force_original_aspect_ratio=decrease:flags=lanczos"
         pad = f"pad={TARGET_LONG_EDGE}:{TARGET_SHORT_EDGE}:(ow-iw)/2:(oh-ih)/2"
     cmd = [
-        ffmpeg, "-hide_banner", "-loglevel", "error", "-stats", "-y",
+        ffmpeg, "-hide_banner", "-loglevel", "error", "-y",
+        *(["-progress", "pipe:1", "-nostats"] if on_progress else ["-stats"]),
         "-i", str(src),
         "-vf", f"{scale},{pad},setsar=1",
         "-c:v", "libx264", "-preset", preset, "-crf", str(crf),
@@ -110,7 +132,21 @@ def upscale(ffmpeg: str, src: Path, dst: Path, w: int, h: int, crf: int, preset:
         "-movflags", "+faststart",
         str(dst),
     ]
-    subprocess.run(cmd, check=True)
+    if not on_progress:
+        subprocess.run(cmd, check=True)
+        return
+    duration = probe_duration(ffmpeg, src)
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    for line in proc.stdout:
+        if line.startswith("out_time_us=") and duration:
+            try:
+                done_s = int(line.split("=", 1)[1]) / 1_000_000
+            except ValueError:
+                continue
+            on_progress(max(0.0, min(done_s / duration, 1.0)))
+    err = proc.stderr.read()
+    if proc.wait() != 0:
+        raise RuntimeError(f"ffmpeg failed: {err.strip()[-300:]}")
 
 
 class ReelError(Exception):
@@ -125,7 +161,16 @@ def fetch_reel(
     preset: str = "slow",
     cookies_browser: str | None = None,
     log=lambda msg: None,
+    progress=None,
 ) -> dict:
+    """progress(fraction, message), if given, is called with overall progress from 0 to 1."""
+    best = [0.0]
+
+    def report(frac: float, msg: str) -> None:
+        # video and audio download separately, so never let the bar move backwards
+        best[0] = max(best[0], frac)
+        if progress:
+            progress(best[0], msg)
     """Download a Reel into outdir and return a summary dict. Used by the web app."""
     m = URL_RE.match(url.strip())
     if not m:
@@ -137,8 +182,12 @@ def fetch_reel(
 
     with tempfile.TemporaryDirectory(prefix="reel4k-") as tmp:
         log("Fetching the best available video from Instagram…")
+        report(0.02, "Downloading from Instagram…")
         try:
-            src, info = download(url.strip(), Path(tmp), ffmpeg, cookies_browser)
+            src, info = download(
+                url.strip(), Path(tmp), ffmpeg, cookies_browser,
+                on_progress=lambda f: report(0.02 + 0.18 * f, f"Downloading from Instagram… {f:.0%}"),
+            )
         except yt_dlp.utils.DownloadError as exc:
             raise ReelError(
                 "Instagram didn't return this video. Make sure the account is public and the link is correct. "
@@ -150,7 +199,11 @@ def fetch_reel(
             shutil.move(str(src), final)
         else:
             log("Exporting 4K…")
-            upscale(ffmpeg, src, final, w, h, crf, preset)
+            report(0.2, "Exporting 4K… 0%")
+            upscale(
+                ffmpeg, src, final, w, h, crf, preset,
+                on_progress=lambda f: report(0.2 + 0.8 * f, f"Exporting 4K… {f:.0%}"),
+            )
 
     fw, fh = probe(ffmpeg, final)
     return {
