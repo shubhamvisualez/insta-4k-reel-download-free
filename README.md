@@ -2,7 +2,7 @@
 
 Paste the link to a public Instagram Reel and get a **4K MP4** (2160×3840 portrait / 3840×2160 landscape). Free, no login.
 
-**🌐 Use it online:** WEB_APP_LINK
+**🌐 Use it online:** **[huggingface.co/spaces/Shubham855/insta-4k-reel-download-free](https://huggingface.co/spaces/Shubham855/insta-4k-reel-download-free)**
 
 You can also run it yourself as a web app or a command-line tool (`reel4k`).
 
@@ -81,3 +81,7 @@ Only download content you own or have permission to use. Respect creators' right
 ## License
 
 MIT
+
+## Hosting
+
+The public web app runs on a free [Hugging Face Space](https://huggingface.co/spaces/Shubham855/insta-4k-reel-download-free). To deploy your own copy, create a Gradio Space and upload `app.py`, the `reel4k/` folder, and the files in `hf_space/` (`README.md`, `requirements.txt`, `packages.txt`) to the Space's root.
